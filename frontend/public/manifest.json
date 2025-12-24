@@ -1,0 +1,30 @@
+{
+  "short_name": "광주관광",
+  "name": "광주 관광 앱 - Gwangju Tour App",
+  "description": "광주의 아름다운 관광지와 맛집을 찾아보세요",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2E8B57",
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "ko",
+  "categories": ["travel", "lifestyle", "navigation"]
+}

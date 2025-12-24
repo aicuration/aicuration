@@ -1,0 +1,45 @@
+{
+  "name": "gwangju-tour-app",
+  "version": "1.0.0",
+  "description": "광주관광 루트찾기 애플리케이션",
+  "main": "electron.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "cd frontend && npm run build",
+    "build-electron": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder --publish=never"
+  },
+  "build": {
+    "appId": "com.gwangju.tour.app",
+    "productName": "GwangjuTourApp",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron.js",
+      "frontend/build/**/*",
+      "backend/**/*",
+      "!backend/__pycache__/**/*",
+      "!backend/*.pyc",
+      "!backend/*.pyo"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/gwangju_tour.db",
+        "to": "gwangju_tour.db"
+      }
+    ],
+    "win": {
+      "target": "dir"
+    },
+    "forceCodeSigning": false,
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^38.4.0",
+    "electron-builder": "^26.0.12"
+  }
+}

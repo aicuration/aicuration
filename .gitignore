@@ -1,0 +1,180 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+.venv/
+ENV/
+env/
+*.spec
+*.pyd
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+
+# React / Frontend Build
+frontend/build/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Executables
+*.exe
+*.app
+*.dmg
+*.msi
+*.deb
+*.rpm
+
+# Backup and Temporary Files
+*.log
+*.bak
+*.tmp
+*.temp
+*.zip
+*.rar
+*.tar
+*.gz
+
+# Cloudflare Tunnel
+cloudflared.exe
+*tunnel*
+*.trycloudflare.com
+
+# CSV Exports
+*.csv
+
+# Virtual Environment
+env/
+virtualenv/
+.env
+.env.local
+.env.*.local
+
+# Build Artifacts
+GwangjuTourApp_Executable/
+GwangjuTourApp_Executable_New/
+GwangjuTourApp_EXE_Package/
+GwangjuTourApp_Final_Package/
+GwangjuTourApp_Simple/
+GwangjuTourApp/
+build/
+dist/
+
+# Database Backups
+database_backup.json
+database/
+
+# Uploads
+uploads/
+
+# QR Codes
+*.png
+!frontend/public/*.png
+!frontend/public/banners/*.jpg
+
+# Android
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/.idea/
+frontend/android/local.properties
+frontend/android/app/release/
+
+# Python Cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Translations
+*.mo
+*.pot
+
+# Flask
+instance/
+.webassets-cache
+
+# FastAPI
+*.pyc
+*.log
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
