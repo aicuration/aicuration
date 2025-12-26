@@ -32,6 +32,10 @@ env/
 *.sqlite
 *.sqlite3
 
+# allow production sqlite db
+!backend/gwangju_tour.db
+
+
 # Node
 node_modules/
 npm-debug.log*
@@ -158,6 +162,7 @@ desktop.ini
 ._*
 .Spotlight-V100
 .Trashes
+
 
 
 
