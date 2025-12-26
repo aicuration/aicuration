@@ -1,10 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pathlib import Path
 
 # 데이터베이스 URL (SQLite로 변경)
-DATABASE_URL = "sqlite:///./gwangju_tour.db"
-
+BASE_DIR = Path(__file__).resolve().parent  # backend 폴더
+DB_PATH = BASE_DIR / "gwangju_tour.db"
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 # 데이터베이스 엔진 생성
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
