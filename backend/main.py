@@ -13,6 +13,7 @@ from typing import Dict
 import logging
 import traceback
 import os
+import secrets
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from dotenv import load_dotenv
@@ -58,6 +59,24 @@ app.add_middleware(
 )
 
 
+def is_prod() -> bool:
+    # Render 배포 환경이면 보통 RENDER env가 존재
+    return bool(os.getenv("RENDER")) or (os.getenv("ENV") == "prod")
+
+def set_session_cookie(response: Response, session_id: str):
+    PROD = is_prod()
+    response.set_cookie(
+        key="session_id",
+        value=session_id,
+        httponly=True,
+        secure=True if PROD else False,        # 배포(Render): True
+        samesite="none" if PROD else "lax",    # 배포(Render): none
+        max_age=60 * 60 * 24 * 7,             # 7일
+        path="/",
+    )
+
+def clear_session_cookie(response: Response):
+    response.delete_cookie("session_id", path="/")
 
 
 # 전역 에러 핸들러
@@ -302,14 +321,12 @@ async def register_user(user_data: dict, db: Session = Depends(get_db)):
         username = user_data.get('username')
         email = user_data.get('email')
         password = user_data.get('password')
-        
+
         if not all([username, email, password]):
             return {'error': '사용자명, 이메일, 비밀번호를 모두 입력해주세요'}
-        
-        # 비밀번호 해싱
+
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
-        # 사용자 생성
+
         cursor = db.execute(sqlalchemy.text("""
             INSERT INTO users (username, email, password_hash)
             VALUES (:username, :email, :password_hash)
@@ -319,17 +336,18 @@ async def register_user(user_data: dict, db: Session = Depends(get_db)):
             'email': email,
             'password_hash': password_hash
         })
-        
+
         user_id = cursor.fetchone()[0]
         db.commit()
-        
         return {'message': '회원가입 성공', 'user_id': user_id}
-        
+
     except Exception as e:
         db.rollback()
-        if 'duplicate key' in str(e).lower():
+        msg = str(e).lower()
+        if ('duplicate key' in msg) or ('unique constraint' in msg) or ('unique violation' in msg):
             return {'error': '이미 존재하는 사용자명 또는 이메일입니다'}
         return {'error': f'회원가입 실패: {str(e)}'}
+
 
 @app.post('/api/auth/login')
 async def login_user(user_data: dict, request: Request, response: Response, db: Session = Depends(get_db)):
@@ -349,25 +367,18 @@ async def login_user(user_data: dict, request: Request, response: Response, db: 
         if not user:
             return {'error': '존재하지 않는 이메일입니다'}
 
+        if not user[2]:
+            return {'error': '이 계정은 비밀번호가 없습니다. Google 로그인으로 접속해주세요.'}
+
         if not bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
             return {'error': '비밀번호가 일치하지 않습니다'}
 
-        # ✅ 세션 생성 (예측 불가 토큰 추천)
+        # ✅ 예측 불가 세션 토큰
         session_id = secrets.token_urlsafe(32)
         user_sessions[session_id] = user[0]
 
-        # ✅ 배포/로컬 분기 (Render에서는 보통 RENDER env가 존재)
-        IS_PROD = bool(os.getenv("RENDER")) or (os.getenv("ENV") == "prod")
-
-        response.set_cookie(
-            key="session_id",
-            value=session_id,
-            httponly=True,
-            secure=True if IS_PROD else False,                 # 배포는 True
-            samesite="none" if IS_PROD else "lax",             # 배포는 none
-            max_age=60 * 60 * 24 * 7,
-            path="/",
-        )
+        # ✅ 배포/로컬 공통 쿠키 세팅
+        set_session_cookie(response, session_id)
 
         return {
             'message': '로그인 성공',
@@ -379,20 +390,22 @@ async def login_user(user_data: dict, request: Request, response: Response, db: 
         return {'error': f'로그인 실패: {str(e)}'}
 
 
-
 @app.post('/api/auth/logout')
 async def logout_user(request: Request, response: Response):
     """사용자 로그아웃"""
     try:
         session_id = request.cookies.get("session_id")
-        if session_id and session_id in user_sessions:
-            del user_sessions[session_id]
-        
-        response.delete_cookie("session_id")
+        if session_id:
+            user_sessions.pop(session_id, None)
+
+        # ✅ path 맞춰서 쿠키 삭제
+        clear_session_cookie(response)
+
         return {'message': '로그아웃 성공'}
-        
+
     except Exception as e:
         return {'error': f'로그아웃 실패: {str(e)}'}
+
 
 @app.post('/api/auth/google')
 async def google_login(user_data: dict, request: Request, response: Response, db: Session = Depends(get_db)):
@@ -401,71 +414,61 @@ async def google_login(user_data: dict, request: Request, response: Response, db
         id_token_str = user_data.get('id_token')
         if not id_token_str:
             return {'error': 'ID 토큰이 필요합니다'}
-        
-        # Google 클라이언트 ID (환경 변수에서 가져오기)
+
         google_client_id = os.getenv('GOOGLE_CLIENT_ID')
         if not google_client_id:
             logger.error("GOOGLE_CLIENT_ID 환경 변수가 설정되지 않았습니다")
             return {'error': '서버 설정 오류입니다'}
-        
+
         # Google ID 토큰 검증
         try:
             id_info = id_token.verify_oauth2_token(
-                id_token_str, 
-                requests.Request(), 
+                id_token_str,
+                requests.Request(),
                 google_client_id
             )
         except ValueError as e:
             logger.error(f"Google 토큰 검증 실패: {e}")
             return {'error': '유효하지 않은 Google 토큰입니다'}
-        
-        # Google 사용자 정보 추출
+
         google_id = id_info.get('sub')
         email = id_info.get('email')
-        name = id_info.get('name', email.split('@')[0])  # 이름이 없으면 이메일 앞부분 사용
-        picture = id_info.get('picture')
-        
+        name = id_info.get('name', email.split('@')[0] if email else 'user')
+
         if not email:
             return {'error': '이메일 정보를 가져올 수 없습니다'}
-        
-        # DB에서 사용자 확인 (이메일로)
+
+        # DB에서 사용자 확인
         result = db.execute(sqlalchemy.text("""
-            SELECT id, username, password_hash, google_id FROM users WHERE email = :email
+            SELECT id, username, google_id FROM users WHERE email = :email
         """), {'email': email})
-        
         user = result.fetchone()
-        
+
         if user:
-            # 기존 사용자 - Google ID 업데이트 (없으면)
             user_id = user[0]
             username = user[1]
-            existing_google_id = user[3]
-            
+            existing_google_id = user[2]
+
             if not existing_google_id:
-                # Google ID 업데이트
                 db.execute(sqlalchemy.text("""
                     UPDATE users SET google_id = :google_id WHERE id = :user_id
                 """), {'google_id': google_id, 'user_id': user_id})
                 db.commit()
         else:
-            # 새 사용자 - 자동 회원가입
-            # username 생성 (이름 또는 이메일 앞부분)
-            base_username = name.replace(' ', '_')
+            # 새 사용자 생성 (password_hash NULL)
+            base_username = (name or email.split('@')[0]).replace(' ', '_')
             username = base_username
             counter = 1
-            
-            # username 중복 체크 및 생성
+
             while True:
-                check_result = db.execute(sqlalchemy.text("""
+                check = db.execute(sqlalchemy.text("""
                     SELECT id FROM users WHERE username = :username
                 """), {'username': username}).fetchone()
-                
-                if not check_result:
+                if not check:
                     break
                 username = f"{base_username}_{counter}"
                 counter += 1
-            
-            # 사용자 생성 (password_hash는 NULL)
+
             cursor = db.execute(sqlalchemy.text("""
                 INSERT INTO users (username, email, password_hash, google_id)
                 VALUES (:username, :email, NULL, :google_id)
@@ -474,29 +477,21 @@ async def google_login(user_data: dict, request: Request, response: Response, db
                 'email': email,
                 'google_id': google_id
             })
-            
-            # SQLite에서 lastrowid 사용
-            user_id = cursor.lastrowid
+            user_id = cursor.lastrowid  # SQLite
             db.commit()
-        
-        # 세션 생성 (기존 로그인 방식과 동일)
-        session_id = f"session_{user_id}"
+
+        # ✅ 로그인과 동일한 세션/쿠키 정책 적용 (중요!)
+        session_id = secrets.token_urlsafe(32)
         user_sessions[session_id] = user_id
-        
-        response.set_cookie(
-            key="session_id", 
-            value=session_id, 
-            httponly=True,
-            secure=False,
-            samesite='Lax'
-        )
-        
+        set_session_cookie(response, session_id)
+
         return {
             'message': 'Google 로그인 성공',
             'user_id': user_id,
-            'username': username
+            'username': username,
+            'email': email
         }
-        
+
     except Exception as e:
         logger.error(f"Google 로그인 실패: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
