@@ -337,43 +337,48 @@ async def login_user(user_data: dict, request: Request, response: Response, db: 
     try:
         email = user_data.get('email')
         password = user_data.get('password')
-        
+
         if not all([email, password]):
             return {'error': '이메일과 비밀번호를 입력해주세요'}
-        
-        # 사용자 조회
+
         result = db.execute(sqlalchemy.text("""
             SELECT id, username, password_hash FROM users WHERE email = :email
         """), {'email': email})
-        
+
         user = result.fetchone()
         if not user:
             return {'error': '존재하지 않는 이메일입니다'}
-        
-        # 비밀번호 확인
+
         if not bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
             return {'error': '비밀번호가 일치하지 않습니다'}
-        
-        # 세션 생성 (간단한 쿠키 방식)
-        session_id = f"session_{user[0]}"
+
+        # ✅ 세션 생성 (예측 불가 토큰 추천)
+        session_id = secrets.token_urlsafe(32)
         user_sessions[session_id] = user[0]
-        
+
+        # ✅ 배포/로컬 분기 (Render에서는 보통 RENDER env가 존재)
+        IS_PROD = bool(os.getenv("RENDER")) or (os.getenv("ENV") == "prod")
+
         response.set_cookie(
-            key="session_id", 
-            value=session_id, 
+            key="session_id",
+            value=session_id,
             httponly=True,
-            secure=False,
-            samesite='Lax'
+            secure=True if IS_PROD else False,                 # 배포는 True
+            samesite="none" if IS_PROD else "lax",             # 배포는 none
+            max_age=60 * 60 * 24 * 7,
+            path="/",
         )
-        
+
         return {
             'message': '로그인 성공',
             'user_id': user[0],
             'username': user[1]
         }
-        
+
     except Exception as e:
         return {'error': f'로그인 실패: {str(e)}'}
+
+
 
 @app.post('/api/auth/logout')
 async def logout_user(request: Request, response: Response):
