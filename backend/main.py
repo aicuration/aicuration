@@ -26,24 +26,39 @@ models.Base.metadata.create_all(bind=engine)
 # 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 # FastAPI 앱 생성
-app = FastAPI(title='광주 관광 앱 API', version='1.0.0')
+app = FastAPI(title="광주 관광 앱 API", version="1.0.0")
 
 # CORS 설정
-app.add_middleware(CORSMiddleware, 
-    allow_origins=[
-        'http://localhost:3000', 
-        'http://localhost:5000',  # Flask 서버 (프로덕션)
-        'http://172.30.1.14:3000'
-    ],
+ALLOWED_ORIGINS = [
+    # React dev
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+
+    # Capacitor / Ionic WebView
+    "https://localhost",
+    "http://localhost",
+    "capacitor://localhost",
+    "ionic://localhost",
+
+    # Android emulator (필요할 때)
+    "http://10.0.2.2:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*']
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+
+
 
 # 전역 에러 핸들러
 @app.exception_handler(Exception)
